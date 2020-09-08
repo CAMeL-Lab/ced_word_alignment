@@ -81,7 +81,6 @@ Side by side alignments are saved to: sample/sample_text.colAlign
 |مانع | مانع |
 |بس | بس |
 |لاتتأخرون | لا تتأخرون |
-|
 
 ### Notes on output
 You can notice here whenever there is a _split_ or _merge_ on either side they are collapsed on the respective side, thus, we can have one-to-many, and many-to-one cases.
@@ -97,7 +96,7 @@ python align_raw_coda.py -r sample/sample.raw.txt -c sample/sample.coda.txt -m b
 Basic alignments are saved to: sample/sample_text.basic
 ```
 |RAW|op|CODA|Alignment Details|
-|- |- |- |- |- |
+|- |- |- |- |
 |خالد| =| خالد| (1, 1, 'n', 0)|
 |:| =| :| (2, 2, 'n', 0)|
 |اممممممممممممممممم| \|| امم| (3, 3, 'e', 1.7)|
@@ -111,7 +110,7 @@ Basic alignments are saved to: sample/sample_text.basic
 |بس| =| بس| (10, 11, 'n', 3.7)|
 | |<| لا|(None, 12, 'i', 4.7)|
 |لاتتأخرون| \|| تتأخرون| (11, 13, 'e', 5.2)|
-|
+
 ### Notes on output
 - Operations (op) are defined as follows:
 
