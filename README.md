@@ -1,6 +1,6 @@
 # Word Alignment
 
-The purpose of this code is to find alignments two parallel sentences on the word level.
+The purpose of this code is to find alignments between parallel sentences on the word level.
 
 ## Basic Approach
 For each sentence, a basic edit distance based alignment is performed. This basic alignment is then followed by a post-processing step that looks at the context of the edit distance operations and decides the best match between the tokens.
