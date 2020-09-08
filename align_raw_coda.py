@@ -1,6 +1,28 @@
+"""Produce word alignment within aligned sentences.
+
+Usage:
+    align_raw_coda (-r RAWSENT | --raw=RAWSENT)
+                (-c CODASENT | --coda=CODASENT)
+                (-m MODE | --mode=MODE)
+                (-o OUTSTR | --out OUTSTR)
+                [-h HELP]
+
+Options:
+  -r RAWSENT --raw=RAWSENT  RAW sentences file
+  -c CODASENT --coda=CODASENT  CODA sentences file
+  -m MODE --mode=MODE  
+        Two modes to choose from: 
+            1- 'align' To produce full alignments (one-to-many and many-to-one)
+            2- 'basic' To produce basic alignments with operation and distance details (one-to-one)
+            [default: align]
+  -o OUTSTR --out=OUTSTR  Prefix for single output files
+  -h --help  Show this screen.
+"""
+
 from alignment import align_words
 import itertools as itr
 import editdistance
+from docopt import docopt
 import sys
 import re
 
@@ -12,8 +34,8 @@ def _detect_i_d_seuqnces(alignments):
     for alignment in alignments:
         operation_strings += alignment[2]
     
-    if list(re.finditer('(?<!e)i+d+(?!e)', operation_strings)) != []:
-        print(operation_strings)
+    # if list(re.finditer('(?<!e)i+d+(?!e)', operation_strings)) != []:
+    #     print(operation_strings)
     #     for match in re.finditer('(?<!e)i+d+(?!e)', operation_strings):
     #         print('\t', match.group())
     if list(re.finditer('d+i+', operation_strings)) != []:
@@ -43,19 +65,17 @@ def _detect_i_d_seuqnces(alignments):
 
 
 
-def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda_stream):
-    # list of keys
+def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda_stream, col_align_stream):
     seqs = _detect_i_d_seuqnces(alignments)
 
     keys = list(range(max(len(raw_sent), len(coda_sent))))
     words = dict.fromkeys(keys)
-
+    
     for key in words:
         words[key] = {}
         words[key]['raw'] = []
         words[key]['coda'] = []
-    #print(raw_sent, coda_sent)
-    # if seqs: print(seqs)
+
     visited_coda = []
     for seq in seqs:
         if len(seqs[seq]) == 1:
@@ -67,15 +87,12 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
                 words[seq-1]['raw'].append(raw_sent[seq-1])
         elif len(seqs[seq]) > 1:
             words[seq]['raw'].append(raw_sent[seq])
-            print(seqs[seq])
             for x in seqs[seq]:
                 words[seq]['coda'].append(coda_sent[x])
                 visited_coda.append(x)
-            print(words[seq]['raw'], words[seq]['coda'])
         else:
             print('why')
-    for seq in seqs:
-        print(words[seq]['raw'], words[seq]['coda'])
+
 
     for alignment in alignments:
         current_op = alignment[2]
@@ -95,32 +112,10 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
             prev_op = alignments[prev_idx][2]
             prev_align = alignments[prev_idx]
 
-        # if (alignment[0] is None) and (next_align[1] is None):
-        #     continue
-        #     # words[next_align[0]-1]['raw'].append(raw_sent[next_align[0]-1])
-        #     # words[next_align[0]-1]['coda'].append(coda_sent[alignment[1]-1])
-        # elif (alignment[1] is None) and (prev_align[0] is None):
-        #     continue
-
-        # elif (alignment[1] is None) and (next_align[0] is None):
-        #     continue
-        #     # words[alignment[0]-1]['raw'].append(raw_sent[alignment[0]-1])
-        #     # words[alignment[0]-1]['coda'].append(coda_sent[next_align[1]-1])
-        # elif (alignment[0] is None) and (prev_align[1] is None):
-        #         continue
-        
-        # elif (alignment[0] is None) and (next_align[0] is None):
-
-        #     continue
-        # elif (alignment[1] is None) and (next_align[1] is None):
-        #     continue
-        
-        
         if alignment[0] is None:
 
             if (prev_op == 'e' and current_op == 'i' and next_op == 'e'):
-                # print('here')
-                # print(prev_align, alignment, next_align)
+
                 hypoth_1 = coda_sent[alignment[1]-2]+coda_sent[alignment[1]-1] #go with e+i
                 hypoth_2 = coda_sent[alignment[1]-1]+coda_sent[alignment[1]] # go with i+e
                 raw_1 = raw_sent[prev_align[0]-1] #e+i
@@ -131,13 +126,9 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
 
                 if dist_1 < dist_2:
                     words[prev_align[0]-1]['coda'].append(coda_sent[alignment[1]-1])
-                    # words[alignment[1]-2]['coda'].append(coda_sent[alignment[1]-1])
                 else:
                     words[next_align[0]-1]['coda'].append(coda_sent[alignment[1]-1])
-                    # if next_align[0] == next_align[1]:
-                    #     words[alignment[1]]['coda'].append(coda_sent[alignment[1]-1])
-                    # else:
-                    #     words[alignment[1]-1]['coda'].append(coda_sent[alignment[1]-1])
+
 
             elif (prev_op == 'e' and current_op == 'i'):
                 if (prev_align[0]-1) in seqs:
@@ -146,24 +137,17 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
                     continue
                 words[prev_align[0]-1]['coda'].append(coda_sent[alignment[1]-1])
                 
-                # words[alignment[1]-2]['coda'].append(coda_sent[alignment[1]-1])
             elif next_op not in ['i', 'd']:
-                # print(prev_align, alignment, next_align)
-                # print(next_align[0]-1, alignment[1]-1)
+
                 if (next_align[0]-1) in seqs or ((next_align[0]-1) == -2):
                     continue
                 elif (alignment[1]-1) in visited_coda:
                     continue
                 words[next_align[0]-1]['coda'].append(coda_sent[alignment[1]-1])
-                # if next_align[0] == next_align[1]:
-                #     words[alignment[1]]['coda'].append(coda_sent[alignment[1]-1])
-                # else:
-                #     words[alignment[1]-1]['coda'].append(coda_sent[alignment[1]-1])
             else:
                 continue
 
         elif alignment[1] is None:
-            print(prev_op, current_op, next_op)
             if current_op == 'd' and next_op == 'e':
                 if (alignment[0]) in seqs:
                     continue
@@ -184,9 +168,7 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
             words[alignment[0] - 1]['coda'].append(coda_sent[alignment[1] - 1])
         else:
             continue
-    print('------------------------')
-    for seq in seqs:
-        print(words[seq]['raw'], words[seq]['coda'])
+
     for key in words:
         if words[key]['raw'] == [] and words[key]['coda'] == []:
             continue
@@ -197,9 +179,11 @@ def write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_stream, coda
 
         raw_stream.write(f'{" ".join(words[key]["raw"])}\n')
         coda_stream.write(f'{" ".join(words[key]["coda"])}\n')
-        # file_stream.write(f'{" ".join(words[key]["raw"])}\t{" ".join(words[key]["coda"])}\n')
+        col_align_stream.write(f'{" ".join(words[key]["raw"])}\t{" ".join(words[key]["coda"])}\n')
+
     raw_stream.write('\n')
     coda_stream.write('\n')
+    col_align_stream.write('\n')
         
 
 
@@ -219,23 +203,30 @@ def write_distances_only(distances, raw_sent, coda_sent, file_stream):
             file_stream.write('=' if distance[2] == 'n' else '|')
             file_stream.write('\t')
             file_stream.write(coda_sent[distance[1] - 1])
-            file_stream.write(f'{distance}\n')
-    file_stream.write('-----------------------------\n')
+            file_stream.write(f'\t{distance}\n')
+    file_stream.write('\n')
 
 
 if __name__ == "__main__":
-    raw_sentences = open(sys.argv[1], 'r').readlines()
-    coda_sentences = open(sys.argv[2], 'r').readlines()
+    arguments = docopt(__doc__)
+    raw_sentences = open(arguments['--raw'], 'r').readlines()
+    coda_sentences = open(arguments['--coda'], 'r').readlines()
+    mode = arguments['--mode']
 
-    option = sys.argv[3]
-
-    if option == 'align':
-        raw_output = open(sys.argv[1]+'.align', 'w')
-        coda_output = open(sys.argv[2]+'.align', 'w')
-    elif option == 'dist':
-        output = open(sys.argv[1][:-3]+'dist', 'w')
-    elif option == 'align_op':
-        output = open(sys.argv[1][:-4]+'alignOp', 'w')
+    if mode == 'align':
+        raw_output = open(arguments['--raw']+'.align', 'w')
+        coda_output = open(arguments['--coda']+'.align', 'w')
+        col_align_out = open(arguments['--out']+'.colAlign', 'w')
+        col_align_out.write(f'RAW\tCODA\n')
+    elif mode == 'basic':
+        output = open(arguments['--out']+'.basic', 'w')
+    else:
+        print(f"Warning: mode: [{arguments['--mode']}] is not valid, falling back to default mode: [align]")
+        mode = 'align'
+        raw_output = open(arguments['--raw']+'.align', 'w')
+        coda_output = open(arguments['--coda']+'.align', 'w')
+        col_align_out = open(arguments['--out']+'.colAlign', 'w')
+        col_align_out.write(f'RAW\tCODA\n')
     
     for raw,coda in zip(raw_sentences, coda_sentences):
 
@@ -243,9 +234,19 @@ if __name__ == "__main__":
         raw_sent = raw.strip().split()
         coda_sent = coda.strip().split()
 
-        if option == 'align':
-            write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_output, coda_output)
+        if mode == 'align':
+            write_exact_alignment_only(alignments, raw_sent, coda_sent, raw_output, coda_output, col_align_out)
             
-        elif option == 'dist':
+        elif mode == 'basic':
             write_distances_only(alignments, raw_sent, coda_sent, output)
-
+    
+    if mode == 'align':
+        print(f'RAW alignments are saved to: {arguments["--raw"]}.align')
+        raw_output.close()
+        print(f'CODA alignments are saved to: {arguments["--coda"]}.align')
+        coda_output.close()
+        print(f'Side by side alignments are saved to: {arguments["--out"]}.colAlign')
+        col_align_out.close()
+    elif mode == 'basic':
+        print(f'Basic alignments are saved to: {arguments["--out"]}.basic')
+        output.close()
