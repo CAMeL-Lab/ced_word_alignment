@@ -13,6 +13,8 @@ For each sentence, a basic edit distance based alignment is performed. This basi
 - `align_raw_coda.py` main script that produces the alignments.
 - `alignmnet.py` basic alignmnet script that is used in the initial step.
 - `requirements.txt` necessary dependencies needed to run the scripts.
+- sample/ a directory with sample sentences for demostrating the examples below.
+- `README.md` this document.
 
 ## Requirements
 - Python 3.5 and above.
