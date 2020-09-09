@@ -118,10 +118,10 @@ Basic alignments are saved to: sample/sample_text.basic
 
 |op|Decription|
 |-|-|
-|=|  No change|
-|\||  Edit|
-|< | Insertion|
-|> | Deletions|
+|=|  No change (n)|
+|\||  Edit (e)|
+|< | Insertion (i)|
+|> | Deletions (d)|
 
 - Alignment Details is a compact representation of the alignment:
 ```
