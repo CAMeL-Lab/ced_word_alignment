@@ -192,11 +192,11 @@ def write_distances_only(distances, raw_sent, coda_sent, file_stream):
         if distance[0] is None:
             file_stream.write('\t<\t')
             file_stream.write(coda_sent[distance[1] - 1])
-            file_stream.write(f'{distance}\n')
+            file_stream.write(f'\t{distance}\n')
         elif distance[1] is None:
             file_stream.write(raw_sent[distance[0] - 1])
             file_stream.write('\t>\t')
-            file_stream.write(f'{distance}\n')
+            file_stream.write(f'\t{distance}\n')
         else:
             file_stream.write(raw_sent[distance[0] - 1])
             file_stream.write('\t')
