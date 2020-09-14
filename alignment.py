@@ -32,7 +32,7 @@ def _edit_distance(tokens1, tokens2, weight_fns):
             if (tokens1[i] == tokens2[j]):
                 edit_cost = tbl[(i + 1, j + 1)] = (tbl[(i, j)][0], 'n')
             else:
-                edit_cost = (tbl[(i, j)][0] + weight_fns['e'](tokens1[i], tokens2[j]), 'e')
+                edit_cost = (tbl[(i, j)][0] + weight_fns['s'](tokens1[i], tokens2[j]), 's')
 
             insert_cost = (tbl[(i, j + 1)][0] + weight_fns['d'](tokens1[i]), 'd')
             delete_cost = (tbl[(i + 1, j)][0] + weight_fns['i'](tokens2[j]), 'i')
@@ -44,7 +44,7 @@ def _edit_distance(tokens1, tokens2, weight_fns):
 
 def _gen_alignments(tokens1, tokens2):
     weight_fns = {
-        'e': lambda x, y: editdistance.eval(x, y) * 2 / max(len(x), len (y)),
+        's': lambda x, y: editdistance.eval(x, y) * 2 / max(len(x), len (y)),
         'd': lambda x: 1,
         'i': lambda x: 1
     }
@@ -63,7 +63,7 @@ def _gen_alignments(tokens1, tokens2):
         op = dist_table[(i, j)][1]
         cost = dist_table[(i, j)][0]
 
-        if op == 'n' or op == 'e':
+        if op == 'n' or op == 's':
             alignments.appendleft((i, j, op, cost))
             i -= 1
             j -= 1
