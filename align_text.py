@@ -33,11 +33,7 @@ def _detect_i_d_seuqnces(alignments):
     operation_strings = ''
     for alignment in alignments:
         operation_strings += alignment[2]
-    
-    # if list(re.finditer('(?<!e)i+d+(?!e)', operation_strings)) != []:
-    #     print(operation_strings)
-    #     for match in re.finditer('(?<!e)i+d+(?!e)', operation_strings):
-    #         print('\t', match.group())
+
     if list(re.finditer('d+i+', operation_strings)) != []:
         print('True')
     for match in re.finditer('i+d+', operation_strings):
@@ -51,7 +47,6 @@ def _detect_i_d_seuqnces(alignments):
                 raw_idx.append(alignments[i][0]-1)
             else:
                 print('wth man')
-        #print(raw_idx, correct_idx)
         prev_r = 0
         for r,c in itr.zip_longest(raw_idx, correct_idx):        
             if r is not None:
