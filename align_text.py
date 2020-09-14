@@ -217,7 +217,7 @@ if __name__ == "__main__":
         raw_output = open(arguments['--raw']+'.align', 'w')
         correct_output = open(arguments['--correct']+'.align', 'w')
         col_align_out = open(arguments['--out']+'.coAlign', 'w')
-        col_align_out.write(f'RAW\tCODA\n')
+        col_align_out.write(f'RAW\CORRECT\n')
     elif mode == 'basic':
         output = open(arguments['--out']+'.basic', 'w')
     else:
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         raw_output = open(arguments['--raw']+'.align', 'w')
         correct_output = open(arguments['--correct']+'.align', 'w')
         col_align_out = open(arguments['--out']+'.coAlign', 'w')
-        col_align_out.write(f'RAW\tCODA\n')
+        col_align_out.write(f'RAW\CORRECT\n')
     
     for raw,correct in zip(raw_sentences, correct_sentences):
 
