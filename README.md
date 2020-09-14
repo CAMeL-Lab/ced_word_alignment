@@ -70,9 +70,9 @@ python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m alig
 
 ### Output
 ```
-RAW alignments are saved to: sample/sample.raw.txt.align
-CORRECT alignments are saved to: sample/sample.correct.txt.align
-Side by side alignments are saved to: sample/sample.coAlign
+RAW alignments are saved to: sample/sample.ar.raw.align
+CORRECT alignments are saved to: sample/sample.ar.correct.align
+Side by side alignments are saved to: sample/sample.ar.coAlign
 ```
 ### Side by side view (found in the _.coAlign_ file)
 
