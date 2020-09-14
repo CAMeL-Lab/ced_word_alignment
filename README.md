@@ -101,7 +101,7 @@ python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m basi
 ```
 ### Output
 ```
-Basic alignments are saved to: sample/sample.basic
+Basic alignments are saved to: sample/sample.ar.basic
 ```
 |RAW|op|CORRECT|Alignment Details|
 |- |- |- |- |
