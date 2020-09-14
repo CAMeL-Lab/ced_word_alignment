@@ -125,13 +125,9 @@ Basic alignments are saved to: sample/sample.basic
 |op|Description|
 |-|-|
 |=|  No change (n)|
-<<<<<<< HEAD
 |\||  Substitution (s)|
-=======
-|\||  Edit (e)|
->>>>>>> f0c871f6ce615ff0964b70696e35f6eafc9640b5
 |< | Insertion (i)|
-|> | Deletions (d)|
+|> | Deletion (d)|
 
 - Alignment Details is a compact representation of the alignment:
 ```
