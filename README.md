@@ -1,4 +1,4 @@
-# Word Alignment
+# Character Edit Distance Based Word Alignment
 
 The purpose of this code is to find alignments between parallel sentences 
 in the same language but with different spelling conventions.  The ideal use
