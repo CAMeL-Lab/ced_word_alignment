@@ -5,17 +5,21 @@ in the same language but with different spelling conventions.  The ideal use
 case is that of raw text with spelling errors, and its corrected form.
 
 ## Basic Approach
+
 For each sentence, a basic edit distance based alignment is performed at the word level.
  This is followed by a post-processing step that looks at the context of the edit distance
  operations and decides the best match between the words within the sentence.
 
 ## Assumptions
+
 - Sentences are aligned.
 - No changes to the word order.
 - Text is in the same script and encoding.
 
-#
+---
+
 ## Contents
+
 - `align_text.py` main script that produces the alignments.
 - `alignmnet.py` basic alignment script that is used in the initial step.
 - `requirements.txt` necessary dependencies needed to run the scripts.
@@ -23,15 +27,20 @@ For each sentence, a basic edit distance based alignment is performed at the wor
 - `README.md` this document.
 
 ## Requirements
+
 - Python 3.5 and above.
 
 To use, you need to first install the necessary dependencies by running the following command:
-```
+
+```bash
 pip install -r requirements.txt
 ```
-#
+
+---
+
 ## Usage
-```
+
+```text
 Usage:
     align_text (-r RAWSENT | --raw=RAWSENT)
                 (-c CORRECTSENT | --correct=CORRECTSENT)
@@ -50,30 +59,41 @@ Options:
   -o OUTSTR --out=OUTSTR  Prefix for single output files
   -h --help  Show this screen.
 ```
-#
+
+---
+
 ## Examples from Arabic (Raw vs Corrected)
 
 ### Inputs
+
 ### Raw sentence
-```
+
+```text
 خالد : اممممممممممممممممم اذا بتروحون العصر اوكي ماعندي مانع بس لاتتأخرون
 ```
+
 ### Correct sentence
-```
+
+```text
 خالد : امم اذا بتروحون العصر اوكيه ما عندي مانع بس لا تتأخرون
 ```
-#
+
+---
+
 ### Full alignment
-```
+
+``` bash
 python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m align -o sample/sample.ar
 ```
 
 ### Output
-```
+
+```text
 RAW alignments are saved to: sample/sample.ar.raw.align
 CORRECT alignments are saved to: sample/sample.ar.correct.align
 Side by side alignments are saved to: sample/sample.ar.coAlign
 ```
+
 ### Side by side view (found in the _.coAlign_ file)
 
 |RAW| CORRECT|
@@ -91,18 +111,23 @@ Side by side alignments are saved to: sample/sample.ar.coAlign
 |لاتتأخرون | لا تتأخرون |
 
 ### Notes on output
+
 You can notice here whenever there is a _split_ or _merge_ on either side they are collapsed on the respective side, thus, we can have one-to-many, and many-to-one cases.
 
-#
+---
 
 ### Basic alignment
-```
+
+```text
 python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m basic -o sample/sample.ar
 ```
+
 ### Output
-```
+
+```text
 Basic alignments are saved to: sample/sample.ar.basic
 ```
+
 |RAW|op|CORRECT|Alignment Details|
 |- |- |- |- |
 |خالد| =| خالد| (1, 1, 'n', 0)|
@@ -120,6 +145,7 @@ Basic alignments are saved to: sample/sample.ar.basic
 |لاتتأخرون| \|| تتأخرون| (11, 13, 's', 5.2)|
 
 ### Notes on output
+
 - Operations (op) are defined as follows:
 
 |op|Description|
@@ -130,6 +156,7 @@ Basic alignments are saved to: sample/sample.ar.basic
 |> | Deletion (d)|
 
 - Alignment Details is a compact representation of the alignment:
-```
+
+```text
 (<source_idx>, <targe_idx>, op, editdistance_score)
 ```
