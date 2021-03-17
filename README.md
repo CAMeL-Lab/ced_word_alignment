@@ -28,7 +28,7 @@ For each sentence, a basic edit distance based alignment is performed at the wor
 
 ## Requirements
 
-- Python 3.5 and above.
+- Python 3.6 and above.
 
 To use, you need to first install the necessary dependencies by running the following command:
 
