@@ -1,14 +1,14 @@
 # Character Edit Distance Based Word Alignment
 
-The purpose of this code is to find alignments between parallel sentences 
-in the same language but with different spelling conventions.  The ideal use
-case is that of raw text with spelling errors, and its corrected form.
+The purpose of this code is to find alignments between parallel sentences
+in the same language but with different spelling conventions.
+The ideal use case is that of source text with spelling errors, and its target corrected form.
 
 ## Basic Approach
 
 For each sentence, a basic edit distance based alignment is performed at the word level.
- This is followed by a post-processing step that looks at the context of the edit distance
- operations and decides the best match between the words within the sentence.
+This is followed by a post-processing step that looks at the context of the edit distance
+operations and decides the best match between the words within the sentence.
 
 ## Assumptions
 
@@ -42,37 +42,40 @@ pip install -r requirements.txt
 
 ```text
 Usage:
-    align_text (-r RAWSENT | --raw=RAWSENT)
-                (-c CORRECTSENT | --correct=CORRECTSENT)
-                (-m MODE | --mode=MODE)
-                (-o OUTSTR | --out OUTSTR)
-                [-h HELP]
+    align_text.py (-s SOURCE | --source=SOURCE)
+               (-t TARGET | --target=TARGET)
+               (-m MODE | --mode=MODE)
+               (-o OUTPUT | --out OUTPUT)
+    align_text.py (-h | --help) 
 
 Options:
-  -r RAWSENT --raw=RAWSENT  RAW sentences file
-  -c CORRECTSENT --correct=CORRECTSENT  CORRECT sentences file
-  -m MODE --mode=MODE  
+  -s SOURCE --source=SOURCE
+        source/reference/gold sentences file
+  -t TARGET --target=TARGET
+        target/hypothesis/prediction sentences file
+  -m MODE --mode=MODE
         Two modes to choose from: 
             1- 'align' To produce full alignments (one-to-many and many-to-one)
             2- 'basic' To produce basic alignments with operation and distance details (one-to-one)
-            [default: align]
-  -o OUTSTR --out=OUTSTR  Prefix for single output files
-  -h --help  Show this screen.
+  -o OUTPUT --output=OUTPUT
+        Prefix for single output files
+  -h --help
+        Show this screen.
 ```
 
 ---
 
-## Examples from Arabic (Raw vs Corrected)
+## Examples from Arabic (Source/Refrence/Gold vs Target/Hypothesis/Prediction)
 
 ### Inputs
 
-### Raw sentence
+### Source/Refrence/Gold sentence
 
 ```text
 خالد : اممممممممممممممممم اذا بتروحون العصر اوكي ماعندي مانع بس لاتتأخرون
 ```
 
-### Correct sentence
+### Target/Hypothesis/Prediction sentence
 
 ```text
 خالد : امم اذا بتروحون العصر اوكيه ما عندي مانع بس لا تتأخرون
@@ -83,21 +86,21 @@ Options:
 ### Full alignment
 
 ``` bash
-python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m align -o sample/sample.ar
+python align_text.py -s sample/sample.ar.source -t sample/sample.ar.target -m align -o sample/sample.ar
 ```
 
 ### Output
 
 ```text
-RAW alignments are saved to: sample/sample.ar.raw.align
-CORRECT alignments are saved to: sample/sample.ar.correct.align
+Source alignments are saved to: sample/sample.ar.source.align
+Target alignments are saved to: sample/sample.ar.target.align
 Side by side alignments are saved to: sample/sample.ar.coAlign
 ```
 
 ### Side by side view (found in the _.coAlign_ file)
 
-|RAW| CORRECT|
-|---|-----|
+|Source/Refrence/Gold|Target/Hypothesis/Prediction|
+|--------------------|----------------------------|
 |خالد | خالد |
 |: | : |
 |اممممممممممممممممم | امم |
@@ -119,7 +122,7 @@ You can notice here whenever there is a _split_ or _merge_ on either side they a
 ### Basic alignment
 
 ```text
-python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m basic -o sample/sample.ar
+python align_text.py -s sample/sample.ar.source -t sample/sample.ar.target -m basic -o sample/sample.ar
 ```
 
 ### Output
@@ -128,7 +131,7 @@ python align_text.py -r sample/sample.ar.raw -c sample/sample.ar.correct -m basi
 Basic alignments are saved to: sample/sample.ar.basic
 ```
 
-|RAW|op|CORRECT|Alignment Details|
+|Source/Refrence/Gold|op|Target/Hypothesis/Prediction|Alignment Details|
 |- |- |- |- |
 |خالد| =| خالد| (1, 1, 'n', 0)|
 |:| =| :| (2, 2, 'n', 0)|
@@ -145,6 +148,8 @@ Basic alignments are saved to: sample/sample.ar.basic
 |لاتتأخرون| \|| تتأخرون| (11, 13, 's', 5.2)|
 
 ### Notes on output
+
+- Operations generated are those applied to the Source to generate the target.
 
 - Operations (op) are defined as follows:
 
