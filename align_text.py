@@ -31,139 +31,220 @@ from docopt import docopt
 from alignment import align_words
 
 
-def _detect_i_d_seuqnces(alignments):
-    seq_align = {}
-    operation_strings = ''
-    for alignment in alignments:
-        operation_strings += alignment[2]
-
-    if list(re.finditer('d+i+', operation_strings)) != []:
-        print('True')
-    for match in re.finditer('i+d+', operation_strings):
-        str_span = match.span()
-        src_idx = []
-        trg_idx = []
-        for i in range(str_span[0], str_span[1]):
-            if alignments[i][2] == 'i':
-                trg_idx.append(alignments[i][1]-1)
-            elif alignments[i][2] == 'd':
-                src_idx.append(alignments[i][0]-1)
-            else:
-                print('wth man')
-        prev_r = 0
-        for r,c in itr.zip_longest(src_idx, trg_idx):        
-            if r is not None:
-                seq_align[r] = []
-                seq_align[r].append(c)
-                prev_r = r
-            else:
-                seq_align[prev_r].append(c)
-
-    return seq_align
-
-
 def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_stream, col_align_stream):
-    seqs = _detect_i_d_seuqnces(alignments)
 
     keys = list(range(max(len(src_sent), len(trg_sent))))
     words = dict.fromkeys(keys)
 
+    # initiate the words dictionary
     for key in words:
         words[key] = {}
         words[key]['src'] = []
         words[key]['trg'] = []
 
-    visited_target = []
-    for seq in seqs:
-        if len(seqs[seq]) == 1:
-            words[seq]['src'].append(src_sent[seq])
-            if seqs[seq][0] is not None:
-                words[seq]['trg'].append(trg_sent[seqs[seq][0]])
-                visited_target.append(seqs[seq][0])
-            else:
-                words[seq-1]['src'].append(src_sent[seq-1])
-        elif len(seqs[seq]) > 1:
-            words[seq]['src'].append(src_sent[seq])
-            for x in seqs[seq]:
-                words[seq]['trg'].append(trg_sent[x])
-                visited_target.append(x)
-        else:
-            print('why')
 
-    for alignment in alignments:
-        current_op = alignment[2]
-        prev_idx = alignments.index(alignment)-1
-        next_idx = alignments.index(alignment)+1
+    i = 0
+
+    # store the location of the last substitute alignment
+    last_non_d = -1 
+    
+    # go through all the alignments
+    while i < len(alignments): 
+        current_op = alignments[i][2]
+        next_idx = i+1
         if next_idx >= len(alignments):
             next_op = ''
-            next_align = (-1,-1,'x',1)
         else:
             next_op = alignments[next_idx][2]
-            next_align = alignments[next_idx]
 
-        if prev_idx < 0:
-            prev_op = ''
-            prev_align = (-1,-1,'x',1)
-        else:
-            prev_op = alignments[prev_idx][2]
-            prev_align = alignments[prev_idx]
 
-        if alignment[0] is None:
+        current_idx = i
+        # a substitute followed by a delete, this means that the source token
+        #   is aligned to nothing on the target side 
+        if current_op == 's' and next_op == 'd':
+            last_non_d = i
+            current_trg_word = trg_sent[alignments[i][1] - 1]
+            current_src_word = src_sent[alignments[i][0] - 1]
+            hyp_src_word = [current_src_word] # source word tokens hypothesis
+            current_dist = editdistance.distance(current_trg_word, current_src_word)
+            done = False    # flag to exit if the editdistance is larger than current_dist
+            done_eq = False # flag to exit if the editdistance becomes zero (i.e. source = target)
 
-            if (prev_op == 's' and current_op == 'i' and next_op == 's'):
-
-                hypoth_1 = trg_sent[alignment[1]-2]+trg_sent[alignment[1]-1] #go with e+i
-                hypoth_2 = trg_sent[alignment[1]-1]+trg_sent[alignment[1]] # go with i+e
-                src_1 = src_sent[prev_align[0]-1] #e+i
-                src_2 = src_sent[next_align[0]-1] #i+e
-
-                dist_1 = editdistance.eval(hypoth_1, src_1)
-                dist_2 = editdistance.eval(hypoth_2, src_2)
-
-                if dist_1 < dist_2:
-                    words[prev_align[0]-1]['trg'].append(trg_sent[alignment[1]-1])
+            # keep concatenating "deleted" tokens until we reach a new operation
+            #   or the end of the sentence or a change in the editdistance
+            while next_op == 'd' and i < len(alignments) and not done:
+                i += 1
+                temp_word = ''.join(hyp_src_word) + src_sent[alignments[i][0] - 1]
+                new_dist = editdistance.distance(current_trg_word, temp_word)
+                if new_dist >= current_dist:
+                    i -= 1
+                    done = True
+                elif new_dist == 0:
+                    hyp_src_word.append(src_sent[alignments[i][0] - 1])
+                    done = True
+                    done_eq = True
                 else:
-                    words[next_align[0]-1]['trg'].append(trg_sent[alignment[1]-1])
+                    # if the new distance is less than the current, assign it 
+                    #   to the current and keep going
+                    current_dist = new_dist
+                    hyp_src_word.append(src_sent[alignments[i][0] - 1])
+                    if (i+1) < len(alignments):
+                        next_op = alignments[i+1][2]
+            
+            # if we exited because the ditance became larger, rewind the index
+            if done and not done_eq:
+                if temp_word.endswith(hyp_src_word[-1]):
+                    hyp_src_word = hyp_src_word[:-1]
+                    i = i - 1
 
-            elif (prev_op == 's' and current_op == 'i'):
-                if (prev_align[0]-1) in seqs:
-                    continue
-                elif (alignment[1]-1) in visited_target:
-                    continue
-                words[prev_align[0]-1]['trg'].append(trg_sent[alignment[1]-1])
-
-            elif next_op not in ['i', 'd']:
-
-                if (next_align[0]-1) in seqs or ((next_align[0]-1) == -2):
-                    continue
-                elif (alignment[1]-1) in visited_target:
-                    continue
-                words[next_align[0]-1]['trg'].append(trg_sent[alignment[1]-1])
-            else:
+            words[alignments[current_idx][0] - 1]['src'].extend(hyp_src_word)
+            words[alignments[current_idx][0] - 1]['trg'].append(current_trg_word)
+            i += 1
+        
+        # a delete
+        elif current_op == 'd':
+            # try attaching it to the previous 's' and check if the edit distance decreases
+            prev_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(words[alignments[last_non_d][0] - 1]['src']))
+            
+            hypo = words[alignments[last_non_d][0] - 1]['src'] + [src_sent[alignments[i][0] - 1]]
+            hyp_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(hypo))
+            if hyp_dist <= prev_dist:
+                words[alignments[last_non_d][0] - 1]['src'] = hypo
+                i += 1
                 continue
+            
+            # otherwise attach it to the next 's'
+            if next_op == 's':
+                i += 1
+                last_non_d = i
+                words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i-1][0]-1])
+                words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
+                words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
+                i += 1
+            
+            # or keep going if the next token is also deleted
+            elif next_op == 'd':
+                current_src_word = src_sent[alignments[i][0] - 1]
+                hyp_src_word = [current_src_word]
+                current_dist = editdistance.distance('', current_src_word)
+                done = False
+                while next_op == 'd' and i < len(alignments) and not done:
+                    i += 1
+                    temp_word = ''.join(hyp_src_word) + src_sent[alignments[i][0] - 1]
+                    hyp_src_word.append(src_sent[alignments[i][0] - 1])
+                    if (i+1) < len(alignments):
+                        next_op = alignments[i+1][2]
+                
+                if next_op == 's':
+                    i += 1
+                    last_non_d = i
+                    hyp_src_word.append(src_sent[alignments[i][0]-1])
+                    words[alignments[i][0] - 1]['src'].extend(hyp_src_word)
+                    words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
+                    i += 1
+                elif next_op == 'n':
+                    words[alignments[last_non_d][0] - 1]['src'].extend(hyp_src_word)
+                else:
+                    print(f'Illegal operation: {next_op}')
+            
+            # if the next operation is 'n' (i.e. source = target), attach the
+            #   deleted token to the previous 's'
+            elif next_op == 'n':
+                words[alignments[last_non_d][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
+                i +=1
 
-        elif alignment[1] is None:
-            if current_op == 'd' and next_op == 's':
-                if (alignment[0]) in seqs:
-                    continue
-                elif (alignment[0]-1) in seqs:
-                    continue
-                words[alignment[0]]['src'].append(src_sent[alignment[0]-1])
-            elif current_op == 'd' and prev_op == 's':
-                if (alignment[0]-2) in seqs:
-                    continue
-                elif (alignment[0]-1) in seqs:
-                    continue
-                words[alignment[0]-2]['src'].append(src_sent[alignment[0]-1])
-            else:
-                continue
-        elif (alignment[0] is not None) and (alignment[1] is not None):
+        # a substitute or no change
+        elif current_op in ['n', 's']:
+            words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
+            if current_op == 's':
+                last_non_d = i
+            words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
+            i += 1
 
-            words[alignment[0] - 1]['src'].append(src_sent[alignment[0] - 1])
-            words[alignment[0] - 1]['trg'].append(trg_sent[alignment[1] - 1])
-        else:
-            continue
+        
+        # a substitute followed by an insert, this means that the target token
+        #   is aligned to nothing on the source side 
+        # the following process is the same as a substitute followed by a delete
+        elif current_op == 's' and next_op == 'i':
+            last_non_d = i
+            current_trg_word = trg_sent[alignments[i][1] - 1]
+            current_src_word = src_sent[alignments[i][0] - 1]
+            hyp_trg_word = [current_trg_word]
+            current_dist = editdistance.distance(current_trg_word, current_src_word)
+            done = False
+            done_eq = False
+            while next_op == 'i' and i < len(alignments) and not done:
+                i += 1
+                temp_word = ''.join(hyp_trg_word) + trg_sent[alignments[i][1] - 1]
+                new_dist = editdistance.distance(current_trg_word, temp_word)
+                if new_dist >= current_dist:
+                    i -= 1
+                    done = True
+                elif new_dist == 0:
+                    hyp_trg_word.append(trg_sent[alignments[i][1] - 1])
+                    done = True
+                    done_eq = True
+                else:
+                    current_dist = new_dist
+                    hyp_trg_word.append(trg_sent[alignments[i][1] - 1])
+                    if (i+1) < len(alignments):
+                        next_op = alignments[i+1][2]
+            if done and not done_eq:
+                if temp_word.endswith(hyp_trg_word[-1]):
+                    hyp_trg_word = hyp_trg_word[:-1]
+                    i = i - 1
+            words[alignments[current_idx][0] - 1]['trg'].extend(hyp_trg_word)
+            words[alignments[current_idx][0] - 1]['src'].append(current_src_word)
+            i += 1
+        elif current_op == 'i':
+            # try attaching it to the previous 's' and check if the edit distance decreases
+            if i != 0 and last_non_d != -1:
+                prev_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(words[alignments[last_non_d][0] - 1]['src']))
+                
+                hypo = words[alignments[last_non_d][0] - 1]['trg'] + [trg_sent[alignments[i][1] - 1]]
+                hyp_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['src']), ''.join(hypo))
+                if hyp_dist <= prev_dist:
+                    words[alignments[last_non_d][0] - 1]['trg'] = hypo
+                    i += 1
+                    continue
+            if next_op == 's':
+                # if last_non_d != i:
+                #     hypoth_1 = 
+                i += 1
+                last_non_d = i
+                words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i-1][1]-1])
+                words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
+                words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
+                i += 1
+            elif next_op == 'i':
+                current_trg_word = trg_sent[alignments[i][1] - 1]
+                hyp_trg_word = [current_trg_word]
+                current_dist = editdistance.distance('', current_trg_word)
+                done = False
+                while next_op == 'i' and i < len(alignments) and not done:
+                    i += 1
+                    temp_word = ''.join(hyp_trg_word) + trg_sent[alignments[i][1] - 1]
+                    hyp_trg_word.append(trg_sent[alignments[i][1] - 1])
+                    if (i+1) < len(alignments):
+                        next_op = alignments[i+1][2]
+                
+                if next_op == 's':
+                    i += 1
+                    last_non_d = i
+                    hyp_trg_word.append(trg_sent[alignments[i][1]-1])
+                    words[alignments[i][0] - 1]['trg'].extend(hyp_trg_word)
+                    words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
+                    i += 1
+                elif next_op == 'n':
+                    words[alignments[last_non_d][0] - 1]['trg'].extend(hyp_trg_word)
+                else:
+                    print(next_op, 'lol what?')
+            elif next_op == 'n':
+                words[alignments[last_non_d][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
+                i +=1
+                print(next_op, 'haha')
 
+    # remove empty placeholders
     for key in words:
         if words[key]['src'] == [] and words[key]['trg'] == []:
             continue
@@ -203,7 +284,7 @@ def write_distances_only(distances, src_sent, trg_sent, file_stream):
 
 if __name__ == "__main__":
     arguments = docopt(__doc__)
-    print(arguments)
+
     src_sentences = open(arguments['--source'], 'r').readlines()
     trg_sentences = open(arguments['--target'], 'r').readlines()
     mode = arguments['--mode']
@@ -212,7 +293,7 @@ if __name__ == "__main__":
         src_output = open(arguments['--source']+'.align', 'w')
         trg_output = open(arguments['--target']+'.align', 'w')
         col_align_out = open(arguments['--output']+'.coAlign', 'w')
-        col_align_out.write(f'SOURCE\TARGET\n')
+        col_align_out.write(f'SOURCE\tTARGET\n')
     elif mode == 'basic':
         output = open(arguments['--output']+'.basic', 'w')
     else:
@@ -221,7 +302,7 @@ if __name__ == "__main__":
         src_output = open(arguments['--source']+'.align', 'w')
         trg_output = open(arguments['--target']+'.align', 'w')
         col_align_out = open(arguments['--output']+'.coAlign', 'w')
-        col_align_out.write(f'SOURCE\TARGET\n')
+        col_align_out.write(f'SOURCE\tTARGET\n')
 
     for src, trg in zip(src_sentences, trg_sentences):
         alignments = align_words(src.strip(), trg.strip())
