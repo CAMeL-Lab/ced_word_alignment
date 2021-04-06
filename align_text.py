@@ -113,8 +113,14 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 i += 1
                 continue
             
+            # this is a d/i sequence, that is instead of a substitute it is 
+            #   treated as a delete followed by an insert
+            if next_op == 'i':
+                words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
+                words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i+1][1]-1])
+                i += 2
             # otherwise attach it to the next 's'
-            if next_op == 's':
+            elif next_op == 's':
                 i += 1
                 last_non_d = i
                 words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i-1][0]-1])
@@ -145,7 +151,8 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 elif next_op == 'n':
                     words[alignments[last_non_d][0] - 1]['src'].extend(hyp_src_word)
                 else:
-                    print(f'Illegal operation: {next_op}')
+                    print(f'WARNING! Illegal operation: {next_op} in sentence {" ".join(src_sent)}')
+                    i += 1
             
             # if the next operation is 'n' (i.e. source = target), attach the
             #   deleted token to the previous 's'
@@ -207,9 +214,14 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                     words[alignments[last_non_d][0] - 1]['trg'] = hypo
                     i += 1
                     continue
-            if next_op == 's':
-                # if last_non_d != i:
-                #     hypoth_1 = 
+            
+            # this is a i/d sequence, that is instead of a substitute it is 
+            #   treated as an insert followed by a delete
+            if next_op == 'd':
+                words[alignments[i+1][0] - 1]['src'].append(src_sent[alignments[i+1][0]-1])
+                words[alignments[i+1][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
+                i += 2
+            elif next_op == 's':
                 i += 1
                 last_non_d = i
                 words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i-1][1]-1])
@@ -238,11 +250,14 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 elif next_op == 'n':
                     words[alignments[last_non_d][0] - 1]['trg'].extend(hyp_trg_word)
                 else:
-                    print(next_op, 'lol what?')
+                    print(f'WARNING! Illegal operation: {next_op} in sentence {" ".join(src_sent)}')
+                    i += 1
             elif next_op == 'n':
                 words[alignments[last_non_d][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
                 i +=1
-                print(next_op, 'haha')
+            else:
+                print('WARNING: there might be a misalignment in sentence', ''.join(src_sent))
+                i += 1
 
     # remove empty placeholders
     for key in words:
