@@ -46,8 +46,9 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
     i = 0
 
     # store the location of the last substitute alignment
-    last_non_d = -1 
-    
+    last_s_idx = -1
+    last_non_d_op = ''
+    last_non_d_idx = -1
     # go through all the alignments
     while i < len(alignments): 
         current_op = alignments[i][2]
@@ -62,7 +63,9 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
         # a substitute followed by a delete, this means that the source token
         #   is aligned to nothing on the target side 
         if current_op == 's' and next_op == 'd':
-            last_non_d = i
+            last_s_idx = i
+            last_non_d_op = 's'
+            last_non_d_idx = i
             current_trg_word = trg_sent[alignments[i][1] - 1]
             current_src_word = src_sent[alignments[i][0] - 1]
             hyp_src_word = [current_src_word] # source word tokens hypothesis
@@ -103,26 +106,31 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
         
         # a delete
         elif current_op == 'd':
-            # try attaching it to the previous 's' and check if the edit distance decreases
-            prev_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(words[alignments[last_non_d][0] - 1]['src']))
-            
-            hypo = words[alignments[last_non_d][0] - 1]['src'] + [src_sent[alignments[i][0] - 1]]
-            hyp_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(hypo))
-            if hyp_dist <= prev_dist:
-                words[alignments[last_non_d][0] - 1]['src'] = hypo
-                i += 1
-                continue
+            if last_non_d_op == 's':
+                # try attaching it to the previous 's' and check if the edit distance decreases
+                prev_dist = editdistance.distance(''.join(words[alignments[last_s_idx][0] - 1]['trg']), ''.join(words[alignments[last_s_idx][0] - 1]['src']))
+                
+                hypo = words[alignments[last_s_idx][0] - 1]['src'] + [src_sent[alignments[i][0] - 1]]
+                hyp_dist = editdistance.distance(''.join(words[alignments[last_s_idx][0] - 1]['trg']), ''.join(hypo))
+                if hyp_dist <= prev_dist:
+                    words[alignments[last_s_idx][0] - 1]['src'] = hypo
+                    i += 1
+                    continue
             
             # this is a d/i sequence, that is instead of a substitute it is 
             #   treated as a delete followed by an insert
             if next_op == 'i':
                 words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
                 words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i+1][1]-1])
+                last_non_d_op = 's'
+                last_non_d_idx = i
                 i += 2
             # otherwise attach it to the next 's'
             elif next_op == 's':
                 i += 1
-                last_non_d = i
+                last_s_idx = i
+                last_non_d_op = 's'
+                last_non_d_idx = i
                 words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i-1][0]-1])
                 words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
                 words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
@@ -134,7 +142,7 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 hyp_src_word = [current_src_word]
                 current_dist = editdistance.distance('', current_src_word)
                 done = False
-                while next_op == 'd' and i < len(alignments) and not done:
+                while next_op == 'd' and i+1 < len(alignments) and not done:
                     i += 1
                     temp_word = ''.join(hyp_src_word) + src_sent[alignments[i][0] - 1]
                     hyp_src_word.append(src_sent[alignments[i][0] - 1])
@@ -143,37 +151,36 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 
                 if next_op == 's':
                     i += 1
-                    last_non_d = i
+                    last_s_idx = i
+                    last_non_d_op = 's'
+                    last_non_d_idx = i
                     hyp_src_word.append(src_sent[alignments[i][0]-1])
                     words[alignments[i][0] - 1]['src'].extend(hyp_src_word)
                     words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
                     i += 1
-                elif next_op == 'n':
-                    words[alignments[last_non_d][0] - 1]['src'].extend(hyp_src_word)
+                elif next_op in ['n', 'i'] or i+1 >= len(alignments):
+                    words[alignments[last_non_d_idx][0] - 1]['src'].extend(hyp_src_word)
+                    i += 1
                 else:
                     print(f'WARNING! Illegal operation: {next_op} in sentence {" ".join(src_sent)}')
+                    print(f'{alignments[i]}')
+                    print(f'{alignments[i+1]} <-- illegal operation')
                     i += 1
             
-            # if the next operation is 'n' (i.e. source = target), attach the
-            #   deleted token to the previous 's'
-            elif next_op == 'n':
-                words[alignments[last_non_d][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
+            # if the next operation is 'n' (i.e. source = target) or we are at
+            #   the end of the sentence, attach the deleted token to the 
+            #   previous non delete operation weather 's' or 'n'
+            elif next_op in ['n', ''] :
+                words[alignments[last_non_d_idx][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
                 i +=1
 
-        # a substitute or no change
-        elif current_op in ['n', 's']:
-            words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
-            if current_op == 's':
-                last_non_d = i
-            words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
-            i += 1
-
-        
         # a substitute followed by an insert, this means that the target token
         #   is aligned to nothing on the source side 
         # the following process is the same as a substitute followed by a delete
         elif current_op == 's' and next_op == 'i':
-            last_non_d = i
+            last_s_idx = i
+            last_non_d_op = 's'
+            last_non_d_idx = i
             current_trg_word = trg_sent[alignments[i][1] - 1]
             current_src_word = src_sent[alignments[i][0] - 1]
             hyp_trg_word = [current_trg_word]
@@ -205,13 +212,13 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
             i += 1
         elif current_op == 'i':
             # try attaching it to the previous 's' and check if the edit distance decreases
-            if i != 0 and last_non_d != -1:
-                prev_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['trg']), ''.join(words[alignments[last_non_d][0] - 1]['src']))
+            if i != 0 and last_s_idx != -1:
+                prev_dist = editdistance.distance(''.join(words[alignments[last_s_idx][0] - 1]['trg']), ''.join(words[alignments[last_s_idx][0] - 1]['src']))
                 
-                hypo = words[alignments[last_non_d][0] - 1]['trg'] + [trg_sent[alignments[i][1] - 1]]
-                hyp_dist = editdistance.distance(''.join(words[alignments[last_non_d][0] - 1]['src']), ''.join(hypo))
+                hypo = words[alignments[last_s_idx][0] - 1]['trg'] + [trg_sent[alignments[i][1] - 1]]
+                hyp_dist = editdistance.distance(''.join(words[alignments[last_s_idx][0] - 1]['src']), ''.join(hypo))
                 if hyp_dist <= prev_dist:
-                    words[alignments[last_non_d][0] - 1]['trg'] = hypo
+                    words[alignments[last_s_idx][0] - 1]['trg'] = hypo
                     i += 1
                     continue
             
@@ -220,10 +227,14 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
             if next_op == 'd':
                 words[alignments[i+1][0] - 1]['src'].append(src_sent[alignments[i+1][0]-1])
                 words[alignments[i+1][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
+                last_non_d_op = 's'
+                last_non_d_idx = i+1
                 i += 2
             elif next_op == 's':
                 i += 1
-                last_non_d = i
+                last_s_idx = i
+                last_non_d_op = 's'
+                last_non_d_idx = i
                 words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i-1][1]-1])
                 words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1]-1])
                 words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
@@ -233,7 +244,7 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 hyp_trg_word = [current_trg_word]
                 current_dist = editdistance.distance('', current_trg_word)
                 done = False
-                while next_op == 'i' and i < len(alignments) and not done:
+                while next_op == 'i' and i+1 < len(alignments) and not done:
                     i += 1
                     temp_word = ''.join(hyp_trg_word) + trg_sent[alignments[i][1] - 1]
                     hyp_trg_word.append(trg_sent[alignments[i][1] - 1])
@@ -242,22 +253,42 @@ def write_exact_alignment_only(alignments, src_sent, trg_sent, src_stream, trg_s
                 
                 if next_op == 's':
                     i += 1
-                    last_non_d = i
+                    last_s_idx = i
+                    last_non_d_op = 's'
+                    last_non_d_idx = i
                     hyp_trg_word.append(trg_sent[alignments[i][1]-1])
                     words[alignments[i][0] - 1]['trg'].extend(hyp_trg_word)
                     words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0]-1])
                     i += 1
-                elif next_op == 'n':
-                    words[alignments[last_non_d][0] - 1]['trg'].extend(hyp_trg_word)
+                elif next_op in ['n', 'd'] or i+1 >= len(alignments):
+                    words[alignments[last_non_d_idx][0] - 1]['trg'].extend(hyp_trg_word)
+                    i +=1
                 else:
                     print(f'WARNING! Illegal operation: {next_op} in sentence {" ".join(src_sent)}')
+                    print(f'{alignments[i]}')
+                    print(f'{alignments[i+1]} <-- illegal operation')
                     i += 1
-            elif next_op == 'n':
-                words[alignments[last_non_d][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
+            elif next_op in ['n', '']:
+                words[alignments[last_non_d_idx][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
                 i +=1
             else:
                 print('WARNING: there might be a misalignment in sentence', ''.join(src_sent))
                 i += 1
+
+        # a substitute or no change
+        elif current_op in ['n', 's']:
+            words[alignments[i][0] - 1]['src'].append(src_sent[alignments[i][0] - 1])
+            if current_op == 's':
+                last_s_idx = i
+                last_non_d_op = 's'
+            else:
+                last_non_d_op = 'n'
+            
+            last_non_d_idx = i
+            words[alignments[i][0] - 1]['trg'].append(trg_sent[alignments[i][1] - 1])
+            i += 1
+
+        
 
     # remove empty placeholders
     for key in words:
@@ -299,7 +330,6 @@ def write_distances_only(distances, src_sent, trg_sent, file_stream):
 
 if __name__ == "__main__":
     arguments = docopt(__doc__)
-
     src_sentences = open(arguments['--source'], 'r').readlines()
     trg_sentences = open(arguments['--target'], 'r').readlines()
     mode = arguments['--mode']
