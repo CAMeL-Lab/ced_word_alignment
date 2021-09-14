@@ -165,3 +165,8 @@ Basic alignments are saved to: sample/sample.ar.basic
 ```text
 (<source_idx>, <targe_idx>, op, editdistance_score)
 ```
+
+## License
+
+ced_word_alignment is available under the MIT license.
+See the [LICENSE file](/LICENSE) for more info.
