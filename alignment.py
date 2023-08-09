@@ -22,9 +22,8 @@
 
 
 import sys
-import math
 from collections import deque
-import editdistance
+import rapidfuzz.distance.Levenshtein as editdistance
 
 def _print_table(tbl, m, n):
     for i in range(0, m + 1):
@@ -67,7 +66,7 @@ def _edit_distance(tokens1, tokens2, weight_fns):
 
 def _gen_alignments(tokens1, tokens2):
     weight_fns = {
-        's': lambda x, y: editdistance.eval(x, y) * 2 / max(len(x), len (y)),
+        's': lambda x, y: editdistance.distance(x, y) * 2 / max(len(x), len (y)),
         'd': lambda x: 1,
         'i': lambda x: 1
     }
