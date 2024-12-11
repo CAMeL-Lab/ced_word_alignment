@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Khalifa"
+  given-names: "Salam"
+- family-names: "Obeid"
+  given-names: "Ossama"
+- family-names: "Habash"
+  given-names: "Nizar"
+title: "Character Edit Distance Based Word Alignment"
+date-released: 2021
+url: "https://github.com/CAMeL-Lab/ced_word_alignment"
